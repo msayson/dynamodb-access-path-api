@@ -34,6 +34,12 @@ dependencies {
     // Mocking library for Kotlin with JUnit 5 support
     testImplementation("io.mockk:mockk:1.14.9")
 
+    // Testcontainers for local integration testing.
+    // See: https://java.testcontainers.org/quickstart/junit_5_quickstart/
+    testImplementation("org.testcontainers:localstack:1.21.4")
+    testImplementation("org.testcontainers:testcontainers:2.0.3")
+    testImplementation("org.testcontainers:testcontainers-junit-jupiter:2.0.3")
+
     // Detekt dependencies for static code analysis.
     detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting:1.23.8")
 }
@@ -68,7 +74,9 @@ detekt {
 }
 
 tasks.named<Test>("test") {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags("localIntegTest")
+    }
 
     finalizedBy(tasks.jacocoTestReport)
 }
@@ -104,4 +112,25 @@ tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
 
 tasks.withType<io.gitlab.arturbosch.detekt.DetektCreateBaselineTask>().configureEach {
     jvmTarget = "21"
+}
+
+// Define task to run local integ tests
+val localIntegTest = tasks.register<Test>("localIntegTest") {
+    description = "Runs local integration tests."
+    group = "verification"
+
+    useJUnitPlatform {
+        includeTags("localIntegTest")
+    }
+
+    shouldRunAfter(tasks.test)
+
+    onlyIf {
+        System.getProperty("runLocalIntegTests") == "true"
+    }
+
+    // Disable JaCoCo for integ tests
+    extensions.configure(org.gradle.testing.jacoco.plugins.JacocoTaskExtension::class) {
+        isEnabled = false
+    }
 }
