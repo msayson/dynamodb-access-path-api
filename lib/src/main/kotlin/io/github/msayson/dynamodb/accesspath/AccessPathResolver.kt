@@ -1,28 +1,43 @@
 package io.github.msayson.dynamodb.accesspath
 
 import aws.sdk.kotlin.services.dynamodb.DynamoDbClient
+import aws.sdk.kotlin.services.dynamodb.model.DescribeTableRequest
+import aws.sdk.kotlin.services.dynamodb.model.KeyType
 import io.github.msayson.dynamodb.accesspath.model.AccessPathType
+import kotlinx.coroutines.runBlocking
 
 /**
  * Encapsulates logic for determining the optimal DynamoDB access path for a given table and attribute.
- *
- * @param dynamoDbClient The AWS SDK DynamoDB client used to query table schemas.
  */
 class AccessPathResolver(private val dynamoDbClient: DynamoDbClient) {
+
     /**
-     * Queries the DynamoDB table schema and determines the optimal access path for the given attribute.
-     *
-     * If the attribute is the partition key for a table without a sort key, it returns GET_ITEM.
-     * Else if the attribute is the partition key for a table with a sort key, it returns TABLE_QUERY.
-     * Else if the attribute is a partition key for a GSI, it returns GSI_QUERY.
-     * Else it returns SCAN.
-     *
-     * @param tableArn The ARN of the DynamoDB table.
-     * @param attributeName The name of the attribute being accessed.
-     * @return The optimal AccessPathType for the given parameters.
+     * Determine access path asynchronously.
      */
-    fun resolveAccessType(tableArn: String, attributeName: String): AccessPathType {
-        // TODO: Query DynamoDB table schema and determine optimal access path
-        return AccessPathType.GET_ITEM
+    suspend fun resolveAccessType(tableArn: String, attributeName: String): AccessPathType {
+        val tableDescription = dynamoDbClient.describeTable(DescribeTableRequest { tableName = tableArn })
+        val table = requireNotNull(tableDescription.table) { "Table not found: $tableArn" }
+        val keySchema = requireNotNull(table.keySchema) { "Table $tableArn has no key schema" }
+
+        val partitionKey = keySchema.firstOrNull { it.keyType == KeyType.Hash }?.attributeName
+            ?: throw IllegalArgumentException("Table $tableArn has no partition key")
+        val hasSortKey = keySchema.any { it.keyType == KeyType.Range }
+        val gsiPartitionKeys = table.globalSecondaryIndexes?.mapNotNull { gsi ->
+            gsi.keySchema?.firstOrNull { it.keyType == KeyType.Hash }?.attributeName
+        } ?: emptyList()
+
+        return when {
+            attributeName == partitionKey && !hasSortKey -> AccessPathType.GET_ITEM
+            attributeName == partitionKey && hasSortKey -> AccessPathType.TABLE_QUERY
+            gsiPartitionKeys.contains(attributeName) -> AccessPathType.GSI_QUERY
+            else -> AccessPathType.SCAN
+        }
+    }
+
+    /**
+     * Synchronous convenience wrapper for callers that don't use coroutines.
+     */
+    fun resolveAccessTypeBlocking(tableArn: String, attributeName: String): AccessPathType = runBlocking {
+        resolveAccessType(tableArn, attributeName)
     }
 }

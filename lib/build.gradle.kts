@@ -15,6 +15,10 @@ dependencies {
     // AWS SDK for Kotlin - DynamoDB client
     implementation("aws.sdk.kotlin:dynamodb:1.6.80")
 
+    // Coroutines for suspend support in resolver and tests
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
+
     // Use JUnit Jupiter for testing.
     testImplementation(libs.junit.jupiter)
 
