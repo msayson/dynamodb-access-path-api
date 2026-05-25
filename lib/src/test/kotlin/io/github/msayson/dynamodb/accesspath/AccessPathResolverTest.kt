@@ -6,6 +6,7 @@ import aws.sdk.kotlin.services.dynamodb.model.GlobalSecondaryIndexDescription
 import aws.sdk.kotlin.services.dynamodb.model.KeySchemaElement
 import aws.sdk.kotlin.services.dynamodb.model.KeyType
 import aws.sdk.kotlin.services.dynamodb.model.TableDescription
+import io.github.msayson.dynamodb.accesspath.model.AccessPath
 import io.github.msayson.dynamodb.accesspath.model.AccessPathType
 import io.mockk.coEvery
 import io.mockk.mockk
@@ -33,7 +34,7 @@ class AccessPathResolverTest {
     fun `returns GET_ITEM for partition key of a partition-key-only table`() = runBlocking {
         val client = mockk<DynamoDbClient>()
         coEvery { client.describeTable(any()) } returns describeTableResponse(keyElement("pk", KeyType.Hash))
-        assertEquals(AccessPathType.GET_ITEM, AccessPathResolver(client).resolveAccessType("arn:table", "pk"))
+        assertEquals(AccessPath(AccessPathType.GET_ITEM), AccessPathResolver(client).resolveAccessPath("arn:table", "pk"))
     }
 
     @Test
@@ -42,17 +43,33 @@ class AccessPathResolverTest {
         coEvery { client.describeTable(any()) } returns describeTableResponse(
             keyElement("pk", KeyType.Hash), keyElement("sk", KeyType.Range)
         )
-        assertEquals(AccessPathType.TABLE_QUERY, AccessPathResolver(client).resolveAccessType("arn:table", "pk"))
+        assertEquals(AccessPath(AccessPathType.TABLE_QUERY), AccessPathResolver(client).resolveAccessPath("arn:table", "pk"))
     }
 
     @Test
-    fun `returns GSI_QUERY for GSI partition key`() = runBlocking {
+    fun `returns GSI_QUERY with indexName for GSI partition key`() = runBlocking {
         val client = mockk<DynamoDbClient>()
-        val gsi = GlobalSecondaryIndexDescription { keySchema = listOf(keyElement("gsiPk", KeyType.Hash)) }
+        val attributeSearchingFor = "attributeSearchingFor"
+        val matchingGsiName = "MatchingIndex"
+        val nonMatchingGsi = GlobalSecondaryIndexDescription {
+            indexName = "SomeNonMatchingIndex"
+            keySchema = listOf(keyElement("nonMatchingGsiPk", KeyType.Hash))
+        }
+        val matchingGsi = GlobalSecondaryIndexDescription {
+            indexName = matchingGsiName
+            keySchema = listOf(
+                keyElement(attributeSearchingFor, KeyType.Hash),
+                keyElement(attributeSearchingFor, KeyType.Range)
+            )
+        }
         coEvery { client.describeTable(any()) } returns describeTableResponse(
-            keyElement("pk", KeyType.Hash), gsis = listOf(gsi)
+            keyElement("pk", KeyType.Hash),
+            gsis = listOf(nonMatchingGsi, matchingGsi)
         )
-        assertEquals(AccessPathType.GSI_QUERY, AccessPathResolver(client).resolveAccessType("arn:table", "gsiPk"))
+        assertEquals(
+            AccessPath(AccessPathType.GSI_QUERY, indexName = matchingGsiName),
+            AccessPathResolver(client).resolveAccessPath("arn:table", attributeSearchingFor)
+        )
     }
 
     @Test
@@ -61,7 +78,7 @@ class AccessPathResolverTest {
         coEvery { client.describeTable(any()) } returns describeTableResponse(
             keyElement("pk", KeyType.Hash), keyElement("sk", KeyType.Range)
         )
-        assertEquals(AccessPathType.SCAN, AccessPathResolver(client).resolveAccessType("arn:table", "other"))
+        assertEquals(AccessPath(AccessPathType.SCAN), AccessPathResolver(client).resolveAccessPath("arn:table", "other"))
     }
 
     @Test
@@ -73,7 +90,7 @@ class AccessPathResolverTest {
                 globalSecondaryIndexes = null
             }
         }
-        assertEquals(AccessPathType.SCAN, AccessPathResolver(client).resolveAccessType("arn:table", "other"))
+        assertEquals(AccessPath(AccessPathType.SCAN), AccessPathResolver(client).resolveAccessPath("arn:table", "other"))
     }
 
     @Test
@@ -83,7 +100,7 @@ class AccessPathResolverTest {
         coEvery { client.describeTable(any()) } returns describeTableResponse(
             keyElement("pk", KeyType.Hash), gsis = listOf(gsi)
         )
-        assertEquals(AccessPathType.SCAN, AccessPathResolver(client).resolveAccessType("arn:table", "other"))
+        assertEquals(AccessPath(AccessPathType.SCAN), AccessPathResolver(client).resolveAccessPath("arn:table", "other"))
     }
 
     @Test
@@ -93,14 +110,14 @@ class AccessPathResolverTest {
         coEvery { client.describeTable(any()) } returns describeTableResponse(
             keyElement("pk", KeyType.Hash), gsis = listOf(gsi)
         )
-        assertEquals(AccessPathType.SCAN, AccessPathResolver(client).resolveAccessType("arn:table", "sk"))
+        assertEquals(AccessPath(AccessPathType.SCAN), AccessPathResolver(client).resolveAccessPath("arn:table", "sk"))
     }
 
     @Test
-    fun `resolveAccessTypeBlocking returns same result as suspend version`() {
+    fun `resolveAccessPathBlocking returns same result as suspend version`() {
         val client = mockk<DynamoDbClient>()
         coEvery { client.describeTable(any()) } returns describeTableResponse(keyElement("pk", KeyType.Hash))
-        assertEquals(AccessPathType.GET_ITEM, AccessPathResolver(client).resolveAccessTypeBlocking("arn:table", "pk"))
+        assertEquals(AccessPath(AccessPathType.GET_ITEM), AccessPathResolver(client).resolveAccessPathBlocking("arn:table", "pk"))
     }
 
     @Test
@@ -108,7 +125,7 @@ class AccessPathResolverTest {
         val client = mockk<DynamoDbClient>()
         coEvery { client.describeTable(any()) } returns DescribeTableResponse { table = null }
         assertThrows(IllegalArgumentException::class.java) {
-            runBlocking { AccessPathResolver(client).resolveAccessType("arn:table", "pk") }
+            runBlocking { AccessPathResolver(client).resolveAccessPath("arn:table", "pk") }
         }
     }
 
@@ -117,7 +134,7 @@ class AccessPathResolverTest {
         val client = mockk<DynamoDbClient>()
         coEvery { client.describeTable(any()) } throws RuntimeException("Service error")
         assertThrows(RuntimeException::class.java) {
-            runBlocking { AccessPathResolver(client).resolveAccessType("arn:table", "pk") }
+            runBlocking { AccessPathResolver(client).resolveAccessPath("arn:table", "pk") }
         }
     }
 
@@ -126,7 +143,7 @@ class AccessPathResolverTest {
         val client = mockk<DynamoDbClient>()
         coEvery { client.describeTable(any()) } returns describeTableResponse(keyElement("sk", KeyType.Range))
         assertThrows(IllegalArgumentException::class.java) {
-            runBlocking { AccessPathResolver(client).resolveAccessType("arn:table", "sk") }
+            runBlocking { AccessPathResolver(client).resolveAccessPath("arn:table", "sk") }
         }
     }
 
@@ -137,7 +154,7 @@ class AccessPathResolverTest {
             table = TableDescription { keySchema = null }
         }
         assertThrows(IllegalArgumentException::class.java) {
-            runBlocking { AccessPathResolver(client).resolveAccessType("arn:table", "pk") }
+            runBlocking { AccessPathResolver(client).resolveAccessPath("arn:table", "pk") }
         }
     }
 }
