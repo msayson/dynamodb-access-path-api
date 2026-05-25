@@ -58,7 +58,9 @@ class AccessPathResolverTest {
     @Test
     fun `returns SCAN for non-key attribute`() = runBlocking {
         val client = mockk<DynamoDbClient>()
-        coEvery { client.describeTable(any()) } returns describeTableResponse(keyElement("pk", KeyType.Hash))
+        coEvery { client.describeTable(any()) } returns describeTableResponse(
+            keyElement("pk", KeyType.Hash), keyElement("sk", KeyType.Range)
+        )
         assertEquals(AccessPathType.SCAN, AccessPathResolver(client).resolveAccessType("arn:table", "other"))
     }
 
@@ -72,6 +74,26 @@ class AccessPathResolverTest {
             }
         }
         assertEquals(AccessPathType.SCAN, AccessPathResolver(client).resolveAccessType("arn:table", "other"))
+    }
+
+    @Test
+    fun `returns SCAN for non-key attribute when GSIs have null key schema`() = runBlocking {
+        val client = mockk<DynamoDbClient>()
+        val gsi = GlobalSecondaryIndexDescription { keySchema = null }
+        coEvery { client.describeTable(any()) } returns describeTableResponse(
+            keyElement("pk", KeyType.Hash), gsis = listOf(gsi)
+        )
+        assertEquals(AccessPathType.SCAN, AccessPathResolver(client).resolveAccessType("arn:table", "other"))
+    }
+
+    @Test
+    fun `returns SCAN for non-key attribute when GSI key schema has no Hash key`() = runBlocking {
+        val client = mockk<DynamoDbClient>()
+        val gsi = GlobalSecondaryIndexDescription { keySchema = listOf(keyElement("sk", KeyType.Range)) }
+        coEvery { client.describeTable(any()) } returns describeTableResponse(
+            keyElement("pk", KeyType.Hash), gsis = listOf(gsi)
+        )
+        assertEquals(AccessPathType.SCAN, AccessPathResolver(client).resolveAccessType("arn:table", "sk"))
     }
 
     @Test

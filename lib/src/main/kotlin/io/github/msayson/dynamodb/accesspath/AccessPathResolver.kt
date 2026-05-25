@@ -19,17 +19,18 @@ class AccessPathResolver(private val dynamoDbClient: DynamoDbClient) {
         val table = requireNotNull(tableDescription.table) { "Table not found: $tableArn" }
         val keySchema = requireNotNull(table.keySchema) { "Table $tableArn has no key schema" }
 
-        val partitionKey = keySchema.firstOrNull { it.keyType == KeyType.Hash }?.attributeName
-            ?: throw IllegalArgumentException("Table $tableArn has no partition key")
+        val partitionKeyName = keySchema.firstOrNull { it.keyType == KeyType.Hash }?.attributeName
+        requireNotNull(partitionKeyName) { "Table $tableArn has no partition key" }
+
         val hasSortKey = keySchema.any { it.keyType == KeyType.Range }
-        val gsiPartitionKeys = table.globalSecondaryIndexes?.mapNotNull { gsi ->
+        val gsiPartitionKeyNames = table.globalSecondaryIndexes?.mapNotNull { gsi ->
             gsi.keySchema?.firstOrNull { it.keyType == KeyType.Hash }?.attributeName
         } ?: emptyList()
 
         return when {
-            attributeName == partitionKey && !hasSortKey -> AccessPathType.GET_ITEM
-            attributeName == partitionKey && hasSortKey -> AccessPathType.TABLE_QUERY
-            gsiPartitionKeys.contains(attributeName) -> AccessPathType.GSI_QUERY
+            attributeName == partitionKeyName && !hasSortKey -> AccessPathType.GET_ITEM
+            attributeName == partitionKeyName && hasSortKey -> AccessPathType.TABLE_QUERY
+            gsiPartitionKeyNames.contains(attributeName) -> AccessPathType.GSI_QUERY
             else -> AccessPathType.SCAN
         }
     }
