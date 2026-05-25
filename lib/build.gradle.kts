@@ -12,13 +12,16 @@ repositories {
 }
 
 dependencies {
+    // AWS SDK for Kotlin - DynamoDB client
+    implementation("aws.sdk.kotlin:dynamodb:1.6.80")
+
     // Use JUnit Jupiter for testing.
     testImplementation(libs.junit.jupiter)
 
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
-    // AWS SDK for Kotlin - DynamoDB client
-    implementation("aws.sdk.kotlin:dynamodb:1.6.80")
+    // Mocking library for Kotlin with JUnit 5 support
+    testImplementation("io.mockk:mockk:1.14.9")
 }
 
 // Apply a specific Java toolchain to ease working on different environments.

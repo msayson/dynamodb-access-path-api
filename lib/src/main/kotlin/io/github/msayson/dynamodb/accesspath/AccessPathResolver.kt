@@ -1,11 +1,14 @@
 package io.github.msayson.dynamodb.accesspath
 
+import aws.sdk.kotlin.services.dynamodb.DynamoDbClient
 import io.github.msayson.dynamodb.accesspath.model.AccessPathType
 
 /**
  * Encapsulates logic for determining the optimal DynamoDB access path for a given table and attribute.
+ *
+ * @param dynamoDbClient The AWS SDK DynamoDB client used to query table schemas.
  */
-class AccessPathResolver {
+class AccessPathResolver(private val dynamoDbClient: DynamoDbClient) {
     /**
      * Queries the DynamoDB table schema and determines the optimal access path for the given attribute.
      *
