@@ -1,5 +1,5 @@
-# dynamodb-access-path-api
-[![Local Tests](https://github.com/msayson/dynamodb-access-path-api/actions/workflows/test.yml/badge.svg)](https://github.com/msayson/dynamodb-access-path-api/actions/workflows/test.yml)
+# dynamodb-access-path
+[![Local Tests](https://github.com/msayson/dynamodb-access-path/actions/workflows/test.yml/badge.svg)](https://github.com/msayson/dynamodb-access-path/actions/workflows/test.yml)
 
 A Kotlin library that inspects a DynamoDB table's key schema and automatically selects the most efficient access path for a given attribute.
 
