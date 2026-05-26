@@ -9,4 +9,7 @@ object TestConstants {
         readCapacityUnits = DDB_CAPACITY_UNITS
         writeCapacityUnits = DDB_CAPACITY_UNITS
     }
+
+    public const val TABLE_PK_NAME = "TestPartitionKey"
+    public const val TABLE_SK_NAME = "TestSortKey"
 }

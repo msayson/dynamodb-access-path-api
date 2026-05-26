@@ -24,10 +24,9 @@ class TableKeyAccessPathResolutionIntegTest : AccessPathResolverIntegTest() {
     @Test
     fun `resolves GET_ITEM access path for partition key of partition-key-only table`() = runBlocking {
         val tableName = "PartitionKeyOnlyTable"
-        val partitionKeyName = "TestPartitionKey"
-        dynamoDbUtils.createTable(dynamoDb, tableName, partitionKeyName, null, null)
+        dynamoDbUtils.createTable(dynamoDb, tableName, TestConstants.TABLE_PK_NAME, null, null)
         val resolver = AccessPathResolver(dynamoDb)
-        val accessPath = resolver.resolveAccessPath(tableName, partitionKeyName)
+        val accessPath = resolver.resolveAccessPath(tableName, TestConstants.TABLE_PK_NAME)
         assertEquals(AccessPathType.GET_ITEM, accessPath.type)
         assertNull(accessPath.indexName)
     }
@@ -36,11 +35,9 @@ class TableKeyAccessPathResolutionIntegTest : AccessPathResolverIntegTest() {
     @Test
     fun `resolves TABLE_QUERY access path for partition key of table with sort key`() = runBlocking {
         val tableName = "PartitionAndSortKeyTable"
-        val partitionKeyName = "TestPartitionKey"
-        val sortKeyName = "TestSortKey"
-        dynamoDbUtils.createTable(dynamoDb, tableName, partitionKeyName, sortKeyName, null)
+        dynamoDbUtils.createTable(dynamoDb, tableName, TestConstants.TABLE_PK_NAME, TestConstants.TABLE_SK_NAME, null)
         val resolver = AccessPathResolver(dynamoDb)
-        val accessPath = resolver.resolveAccessPath(tableName, partitionKeyName)
+        val accessPath = resolver.resolveAccessPath(tableName, TestConstants.TABLE_PK_NAME)
         assertEquals(AccessPathType.TABLE_QUERY, accessPath.type)
         assertNull(accessPath.indexName)
     }
@@ -49,10 +46,9 @@ class TableKeyAccessPathResolutionIntegTest : AccessPathResolverIntegTest() {
     @Test
     fun `resolves GSI_QUERY access path for GSI partition key`() = runBlocking {
         val tableName = "TableWithGsi"
-        val partitionKeyName = "TestPartitionKey"
         val matchingGsiName = "TestGsi"
         val matchingGsiPartitionKeyName = "GsiPartitionKey"
-        dynamoDbUtils.createTable(dynamoDb, tableName, partitionKeyName, null, listOf(
+        dynamoDbUtils.createTable(dynamoDb, tableName, TestConstants.TABLE_PK_NAME, null, listOf(
             GlobalSecondaryIndex {
                 indexName = "NonMatchingIndex"
                 keySchema = listOf(
@@ -84,5 +80,30 @@ class TableKeyAccessPathResolutionIntegTest : AccessPathResolverIntegTest() {
         val accessPath = resolver.resolveAccessPath(tableName, matchingGsiPartitionKeyName)
         assertEquals(AccessPathType.GSI_QUERY, accessPath.type)
         assertEquals(matchingGsiName, accessPath.indexName)
+    }
+
+    @Tag("localIntegTest")
+    @Test
+    fun `resolves SCAN access path for non-key attribute`() = runBlocking {
+        val tableName = "TableWithoutMatchingKey"
+        dynamoDbUtils.createTable(dynamoDb, tableName, TestConstants.TABLE_PK_NAME, null, listOf(
+            GlobalSecondaryIndex {
+                indexName = "NonMatchingIndex"
+                keySchema = listOf(
+                    KeySchemaElement {
+                        attributeName = "nonMatchingGsiPk"
+                        keyType = KeyType.Hash
+                    }
+                )
+                provisionedThroughput = TestConstants.PROVISIONED_THROUGHPUT
+                projection = Projection {
+                    projectionType = ProjectionType.KeysOnly
+                }
+            }
+        ))
+        val resolver = AccessPathResolver(dynamoDb)
+        val accessPath = resolver.resolveAccessPath(tableName, "NonKeyAttribute")
+        assertEquals(AccessPathType.SCAN, accessPath.type)
+        assertNull(accessPath.indexName)
     }
 }
