@@ -27,8 +27,8 @@ jobs:
             distribution: corretto
             java-version: 21
       - name: Run gradle build
-        run: gradle wrapper build
+        run: gradle wrapper build --stacktrace
         shell: bash
       - name: Run local integ tests
-        run: gradle wrapper localIntegTest -DrunLocalIntegTests=true
+        run: gradle wrapper localIntegTest -DrunLocalIntegTests=true --stacktrace
         shell: bash
