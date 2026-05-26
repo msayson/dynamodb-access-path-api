@@ -183,11 +183,12 @@ publishing {
 
     repositories {
         maven {
-            name = "OSSRH"
-            url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
+            name = "CentralPortal"
+            url = uri("https://central.sonatype.com/api/v1/publisher/upload")
+
             credentials {
-                username = findProperty("ossrhUsername") as String?
-                password = findProperty("ossrhPassword") as String?
+                username = findProperty("centralUsername") as String?
+                password = findProperty("centralPassword") as String?
             }
         }
     }
