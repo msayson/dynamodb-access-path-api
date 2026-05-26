@@ -1044,8 +1044,3 @@ formatting:
   UnnecessaryParenthesesBeforeTrailingLambda:
     active: true
     autoCorrect: true
-  Wrapping:
-    active: true
-    autoCorrect: true
-    indentSize: 4
-    maxLineLength: 140

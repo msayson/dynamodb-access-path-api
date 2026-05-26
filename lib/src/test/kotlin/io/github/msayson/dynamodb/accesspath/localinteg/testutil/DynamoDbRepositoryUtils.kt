@@ -8,18 +8,10 @@ import aws.sdk.kotlin.services.dynamodb.model.KeySchemaElement
 import aws.sdk.kotlin.services.dynamodb.model.KeyType
 import aws.sdk.kotlin.services.dynamodb.model.Projection
 import aws.sdk.kotlin.services.dynamodb.model.ProjectionType
-import aws.sdk.kotlin.services.dynamodb.model.ProvisionedThroughput
 import aws.sdk.kotlin.services.dynamodb.model.ScalarAttributeType
+import io.github.msayson.dynamodb.accesspath.TestConstants
 
 class DynamoDbRepositoryUtils {
-    companion object {
-        private const val DDB_CAPACITY_UNITS = 10L
-        private val PROVISIONED_THROUGHPUT = ProvisionedThroughput {
-            readCapacityUnits = DDB_CAPACITY_UNITS
-            writeCapacityUnits = DDB_CAPACITY_UNITS
-        }
-    }
-
     suspend fun createTable(
         dynamoDb: DynamoDbClient,
         tableName: String,
@@ -51,7 +43,7 @@ class DynamoDbRepositoryUtils {
         return GlobalSecondaryIndex {
             indexName = gsiName
             this.keySchema = keySchema
-            provisionedThroughput = PROVISIONED_THROUGHPUT
+            provisionedThroughput = TestConstants.PROVISIONED_THROUGHPUT
             projection = Projection {
                 projectionType = ProjectionType.KeysOnly
             }
@@ -112,7 +104,7 @@ class DynamoDbRepositoryUtils {
             this.keySchema = keySchema
             this.attributeDefinitions = attributeDefinitions
             globalSecondaryIndexes = gsis
-            provisionedThroughput = PROVISIONED_THROUGHPUT
+            provisionedThroughput = TestConstants.PROVISIONED_THROUGHPUT
         }
     }
 }
