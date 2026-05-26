@@ -18,6 +18,22 @@ A Kotlin library that inspects a DynamoDB table's key schema and automatically s
 - Kotlin 2.x
 - An AWS account with IAM permissions for `dynamodb:DescribeTable` on the target table
 
+## Installation
+
+**Gradle Kotlin DSL:**
+```kotlin
+dependencies {
+    implementation("io.github.msayson:dynamodb-access-path:0.1.0")
+}
+```
+
+**Gradle Groovy DSL:**
+```groovy
+dependencies {
+    implementation 'io.github.msayson:dynamodb-access-path:0.1.0'
+}
+```
+
 ## Usage
 
 ### With coroutines (recommended)
