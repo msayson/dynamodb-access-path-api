@@ -48,6 +48,58 @@ Integ test code snippets to help with debugging:
   * `.withEnv("LS_LOG", "trace") // Enable detailed logging for debugging`
   * `.withEnv("DEBUG", "1") // Enable debug mode`
 
+## Publishing to Maven Central
+
+### One-time set-up
+
+1. Create a [Sonatype Central Portal account](https://central.sonatype.com/) and request access to the `io.github.msayson` namespace.
+
+2. Generate a GPG key for signing artifacts:
+   ```sh
+   gpg --gen-key
+   gpg --list-secret-keys --keyid-format SHORT  # note your key ID (last 8 chars of fingerprint)
+   gpg --keyserver keyserver.ubuntu.com --send-keys YOUR_KEY_ID
+   ```
+   Export the secret keyring file if it doesn't exist:
+   ```sh
+   # Windows
+   gpg --export-secret-keys YOUR_KEY_ID > C:/Users/YourUser/.gnupg/secring.gpg
+   # macOS/Linux
+   gpg --export-secret-keys YOUR_KEY_ID > ~/.gnupg/secring.gpg
+   ```
+
+3. Add signing and Central Portal credentials to `~/.gradle/gradle.properties`:
+   ```properties
+   signing.keyId=LAST8CHARS_OF_KEY_ID
+   signing.password=YOUR_GPG_PASSPHRASE
+
+   # Windows
+   signing.secretKeyRingFile=C:/Users/YourUser/.gnupg/secring.gpg
+   # macOS/Linux
+   # signing.secretKeyRingFile=/home/youruser/.gnupg/secring.gpg
+
+   centralUsername=YOUR_CENTRAL_PORTAL_TOKEN_USERNAME
+   centralPassword=YOUR_CENTRAL_PORTAL_TOKEN_PASSWORD
+   ```
+   Generate these token values at https://central.sonatype.com/account by clicking **Generate User Token**. These are separate from your login credentials.
+
+### Publishing a new version
+
+1. Update `version` in `lib/build.gradle.kts`.
+
+2. Verify all checks pass:
+   ```sh
+   ./gradlew clean build
+   ```
+
+3. Create the Maven Central bundle:
+   ```sh
+   ./gradlew bundleForMavenCentral
+   ```
+   The bundle ZIP is written to `lib/build/mavenCentralBundle/bundle.zip`.
+
+4. Upload via the [Maven Central Portal](https://central.sonatype.com/publishing): go to **Publish** → **Upload Deployment** and select the ZIP file.
+
 ## Helpful commands
 
 * `./gradlew build` - build project, run lint checker, and run unit tests

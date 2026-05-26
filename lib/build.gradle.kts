@@ -1,3 +1,7 @@
+import java.security.MessageDigest
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
+
 plugins {
     // Apply the org.jetbrains.kotlin.jvm Plugin to add support for Kotlin.
     alias(libs.plugins.kotlin.jvm)
@@ -18,6 +22,9 @@ plugins {
     // Apply the signing plugin for signing artifacts before publishing.
     signing
 }
+
+group = "io.github.msayson"
+version = "0.1.0"
 
 repositories {
     // Use Maven Central for resolving dependencies.
@@ -143,6 +150,69 @@ val localIntegTest = tasks.register<Test>("localIntegTest") {
     }
 }
 
+tasks.register("bundleForMavenCentral") {
+    group = "publishing"
+    description = "Creates a ZIP bundle for the new Maven Central Portal."
+
+    dependsOn("publishToMavenLocal", "signMavenJavaPublication")
+
+    val projectVersion = version.toString()
+
+    doLast {
+        val home = System.getProperty("user.home")
+        val localRepo = File(home, ".m2/repository")
+
+        val groupPath = "io/github/msayson/dynamodb-access-path/$projectVersion"
+        val artifactDir = File(localRepo, groupPath)
+
+        if (!artifactDir.exists()) {
+            throw GradleException("Local Maven artifacts not found at: $artifactDir")
+        }
+
+        // Generate missing .md5 and .sha1 checksums required by Maven Central
+        fun hexDigest(algorithm: String, bytes: ByteArray): String {
+            val digest = MessageDigest.getInstance(algorithm).digest(bytes)
+            val sb = StringBuilder()
+            for (b in digest) sb.append("%02x".format(b))
+            return sb.toString()
+        }
+        artifactDir.listFiles()!!.filter { it.extension !in listOf("md5", "sha1", "sha256", "sha512") }.forEach { file ->
+            val bytes = file.readBytes()
+            File("${file.absolutePath}.md5").writeText(hexDigest("MD5", bytes))
+            File("${file.absolutePath}.sha1").writeText(hexDigest("SHA-1", bytes))
+        }
+
+        // Compute build directory WITHOUT using project.buildDir
+        val buildDir = File(System.getProperty("user.dir"), "build")
+        val outputDir = File(buildDir, "mavenCentralBundle")
+        outputDir.mkdirs()
+
+        val zipFile = File(outputDir, "bundle.zip")
+
+        // Walk only the versioned artifact directory, rooted at localRepo so ZIP
+        // entries have the full Maven path: io/github/msayson/dynamodb-access-path/0.1.0/...
+        val allFiles = artifactDir.walkTopDown().filter { it.isFile }.toList()
+
+        if (allFiles.isEmpty()) {
+            throw GradleException("No artifacts found to include in bundle.")
+        }
+
+        zipFile.outputStream().use { fos ->
+            ZipOutputStream(fos).use { zos ->
+                allFiles.forEach { file ->
+                    val entryPath = localRepo.toPath().relativize(file.toPath()).toString()
+                        .replace("\\", "/")
+                    zos.putNextEntry(ZipEntry(entryPath))
+                    file.inputStream().copyTo(zos)
+                    zos.closeEntry()
+                }
+            }
+        }
+
+        println("Bundle created at: ${zipFile.absolutePath}")
+    }
+}
+
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {
@@ -150,7 +220,7 @@ publishing {
 
             groupId = "io.github.msayson"
             artifactId = "dynamodb-access-path"
-            version = "0.1.0"
+            version = version
 
             pom {
                 name.set("dynamodb-access-path")
@@ -177,18 +247,6 @@ publishing {
                     connection.set("scm:git:https://github.com/msayson/dynamodb-access-path.git")
                     developerConnection.set("scm:git:ssh://git@github.com:msayson/dynamodb-access-path.git")
                 }
-            }
-        }
-    }
-
-    repositories {
-        maven {
-            name = "CentralPortal"
-            url = uri("https://central.sonatype.com/api/v1/publisher/upload")
-
-            credentials {
-                username = findProperty("centralUsername") as String?
-                password = findProperty("centralPassword") as String?
             }
         }
     }
