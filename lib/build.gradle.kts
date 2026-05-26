@@ -11,6 +11,12 @@ plugins {
     // Apply the detekt static analysis plugin for Kotlin code.
     // See: https://detekt.dev/docs/1.23.8/gettingstarted/gradle
     id("io.gitlab.arturbosch.detekt") version "1.23.8"
+
+    // Apply the maven-publish plugin for publishing artifacts to a Maven repository.
+    `maven-publish`
+
+    // Apply the signing plugin for signing artifacts before publishing.
+    signing
 }
 
 repositories {
@@ -49,6 +55,8 @@ java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
     }
+    withSourcesJar()
+    withJavadocJar()
 }
 
 jacoco {
@@ -133,4 +141,58 @@ val localIntegTest = tasks.register<Test>("localIntegTest") {
     extensions.configure(org.gradle.testing.jacoco.plugins.JacocoTaskExtension::class) {
         isEnabled = false
     }
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("mavenJava") {
+            from(components["java"])
+
+            groupId = "io.github.msayson"
+            artifactId = "dynamodb-access-path"
+            version = "0.1.0"
+
+            pom {
+                name.set("dynamodb-access-path")
+                description.set("A Kotlin library that determines optimal DynamoDB access paths based on table metadata.")
+                url.set("https://github.com/msayson/dynamodb-access-path")
+
+                licenses {
+                    license {
+                        name.set("Apache License 2.0")
+                        url.set("https://www.apache.org/licenses/LICENSE-2.0")
+                    }
+                }
+
+                developers {
+                    developer {
+                        id.set("msayson")
+                        name.set("Mark Sayson")
+                        url.set("https://github.com/msayson")
+                    }
+                }
+
+                scm {
+                    url.set("https://github.com/msayson/dynamodb-access-path")
+                    connection.set("scm:git:https://github.com/msayson/dynamodb-access-path.git")
+                    developerConnection.set("scm:git:ssh://git@github.com:msayson/dynamodb-access-path.git")
+                }
+            }
+        }
+    }
+
+    repositories {
+        maven {
+            name = "OSSRH"
+            url = uri("https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/")
+            credentials {
+                username = findProperty("ossrhUsername") as String?
+                password = findProperty("ossrhPassword") as String?
+            }
+        }
+    }
+}
+
+signing {
+    sign(publishing.publications["mavenJava"])
 }
