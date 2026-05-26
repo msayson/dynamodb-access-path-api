@@ -98,7 +98,11 @@ Integ test code snippets to help with debugging:
    ```
    The bundle ZIP is written to `lib/build/mavenCentralBundle/bundle.zip`.
 
-4. Upload via the [Maven Central Portal](https://central.sonatype.com/publishing): go to **Publish** → **Upload Deployment** and select the ZIP file.
+4. Run `./upload-to-central.sh` to upload the bundle ZIP to [Maven Central Portal](https://central.sonatype.com/publishing).
+
+5. Log into the [Maven Central Portal](https://central.sonatype.com/publishing) and under **Deployments**, check the status of the latest bundle.zip deployment.
+
+6. If it has status FAILED, root cause and fix the issues and repeat the prior publishing steps once fixed.  If it has status VALIDATED, select the "Publish" action next to the deployment.
 
 ## Helpful commands
 
